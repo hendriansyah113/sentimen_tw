@@ -23,12 +23,16 @@
         <th>Username</th>
         <th>Komentar</th>
         <th>Kategori Sentimen</th>
+        <th>Link</th>
       </tr>
       {% for tweet in tweets %}
       <tr>
         <td>{{ tweet.username }}</td>
         <td>{{ tweet.comment }}</td>
         <td>{{ tweet.sentiment }}</td>
+        <td>
+          <a href="{{ tweet.link }}" target="_blank">Lihat Tweet</a>
+        </td>
       </tr>
       {% endfor %}
     </table>

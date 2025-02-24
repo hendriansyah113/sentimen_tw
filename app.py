@@ -30,11 +30,12 @@ def get_sentiment(text):
     else:
         return 'Tidak Diketahui'
 
+# Fungsi untuk Scraping Postingan Twitter
 # Fungsi untuk Scraping Komentar Twitter
 def get_tweets(keyword):
     # Setup Selenium
     chrome_options = Options()
-    chrome_options.add_argument("--headless")
+    # chrome_options.add_argument("--headless")  # Aktifkan jika ingin headless
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
@@ -69,9 +70,80 @@ def get_tweets(keyword):
         for element in elements:
             try:
                 username = element.find_element(By.XPATH, './/div[@dir="ltr"]/span').text
-                comment = element.find_element(By.XPATH, './/div[2]/div[2]/div[1]/div').text
+                # Ambil isi postingan, bukan komentar
+                comment = element.find_element(By.XPATH, './/div[@data-testid="tweetText"]').text
                 
-                # Cek jika komentar tidak kosong
+                # Ambil link tweet
+                link_element = element.find_element(By.XPATH, './/a[@role="link" and contains(@href, "/status/")]')
+                link = link_element.get_attribute('href')
+                
+                # Cek jika postingan tidak kosong
+                if comment.strip():
+                    sentiment = get_sentiment(comment)
+                    tweets.append({
+                        'username': username,
+                        'comment': comment,
+                        'sentiment': sentiment,
+                        'link': link
+                    })
+            except Exception as e:
+                print(f"Error saat mengambil data: {e}")
+                continue
+
+        # Scroll ke bawah untuk memuat lebih banyak tweet
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(3)
+        new_height = driver.execute_script("return document.body.scrollHeight")
+
+        if new_height == last_height:
+            break
+        last_height = new_height
+
+    driver.quit()
+    print(f"Data yang berhasil diambil: {tweets}")
+    return tweets
+
+    # Setup Selenium
+    chrome_options = Options()
+    # chrome_options.add_argument("--headless")  # Uncomment jika ingin headless
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
+
+    # Login Twitter
+    driver.get("https://twitter.com/login")
+    time.sleep(3)
+    driver.find_element(By.NAME, 'text').send_keys("budionojabiren@gmail.com")
+    driver.find_element(By.NAME, 'text').send_keys(Keys.ENTER)
+    time.sleep(3)
+
+    try:
+        driver.find_element(By.NAME, 'text').send_keys("lalaries11_")
+        driver.find_element(By.NAME, 'text').send_keys(Keys.ENTER)
+        time.sleep(3)
+    except:
+        pass
+
+    driver.find_element(By.NAME, 'password').send_keys("@Lisa1104")
+    driver.find_element(By.NAME, 'password').send_keys(Keys.ENTER)
+    time.sleep(5)
+
+    # Cari Postingan berdasarkan keyword
+    driver.get(f"https://twitter.com/search?q={keyword}&src=typed_query&f=live")
+    time.sleep(5)
+
+    tweets = []
+    last_height = driver.execute_script("return document.body.scrollHeight")
+
+    while len(tweets) < 30:
+        elements = driver.find_elements(By.XPATH, '//article[@data-testid="tweet"]')
+        for element in elements:
+            try:
+                username = element.find_element(By.XPATH, './/div[@dir="ltr"]/span').text
+                # Mengambil postingan (teks utama tweet)
+                comment = element.find_element(By.XPATH, './/div[@data-testid="tweetText"]').text
+                
+                # Cek jika postingan tidak kosong
                 if comment.strip():
                     sentiment = get_sentiment(comment)
                     tweets.append({
