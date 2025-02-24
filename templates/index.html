@@ -1,17 +1,38 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Analisis Sentimen Tweet</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <title>Analisis Sentimen Twitter</title>
   </head>
   <body>
-    <h1>Cari Tweet dan Analisis Sentimen</h1>
-    <form method="POST">
-      <input type="text" name="kata_kunci" placeholder="Kata kunci" required />
+    <h1>Analisis Sentimen Twitter</h1>
+    <form method="post">
+      <input
+        type="text"
+        name="keyword"
+        placeholder="Cari di Twitter"
+        required
+      />
       <button type="submit">Cari</button>
     </form>
 
-    <h2>Grafik Hasil Analisis Sentimen:</h2>
-    <div>{{ grafik_html|safe }}</div>
+    {% if tweets_data %}
+    <h2>Hasil Analisis Sentimen:</h2>
+    {{ graph_html|safe }}
+
+    <table border="1">
+      <tr>
+        <th>Username</th>
+        <th>Komentar</th>
+        <th>Kategori Sentimen</th>
+      </tr>
+      {% for tweet in tweets_data %}
+      <tr>
+        <td>{{ tweet[0] }}</td>
+        <td>{{ tweet[1] }}</td>
+        <td>{{ tweet[2] }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
   </body>
 </html>
