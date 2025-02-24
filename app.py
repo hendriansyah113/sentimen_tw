@@ -10,6 +10,7 @@ import time
 import pandas as pd
 import plotly.graph_objs as go
 import plotly.io as pio
+import plotly.express as px
 from collections import Counter
 import re
 
@@ -41,8 +42,208 @@ def analyze_keywords(tweets):
     word_counts = Counter(filtered_words)
     return word_counts.most_common(10)
 
+def buat_grafik_lokasi(tweets):
+    lokasi = [tweet['location'] for tweet in tweets if tweet['location'] != "Tidak Diketahui"]
+    if not lokasi:
+        return "<h3>Tidak ada data lokasi yang tersedia.</h3>"
+    
+    lokasi_count = Counter(lokasi)
+    lokasi_df = pd.DataFrame(lokasi_count.items(), columns=['Lokasi', 'Jumlah'])
+
+    # Buat grafik batang (bar chart) menggunakan Plotly
+    fig = px.bar(lokasi_df, x='Lokasi', y='Jumlah', 
+                 title="Distribusi Lokasi Pengguna Twitter",
+                 labels={'Lokasi': 'Lokasi', 'Jumlah': 'Jumlah Tweet'})
+    fig.update_layout(xaxis={'categoryorder':'total descending'})
+
+    # Konversi grafik menjadi HTML
+    graph_html = pio.to_html(fig, full_html=False)
+    return graph_html
+
+def buat_grafik_wilayah(tweets):
+    wilayah = [tweet['location'] for tweet in tweets if tweet['location'] != "Tidak Diketahui"]
+    if not wilayah:
+        return "<h3>Tidak ada data wilayah yang tersedia.</h3>"
+    
+    wilayah_count = Counter(wilayah)
+    wilayah_df = pd.DataFrame(wilayah_count.items(), columns=['Wilayah', 'Jumlah'])
+
+    # Buat grafik pie menggunakan Plotly
+    fig = px.pie(wilayah_df, names='Wilayah', values='Jumlah', 
+                 title="Distribusi Wilayah Pengguna Twitter",
+                 labels={'Wilayah': 'Wilayah', 'Jumlah': 'Jumlah Tweet'})
+    fig.update_traces(textinfo='percent+label')
+
+    # Konversi grafik menjadi HTML
+    graph_html = pio.to_html(fig, full_html=False)
+    return graph_html
+
 # Fungsi untuk Scraping Postingan Twitter
 def get_tweets(keyword):
+    # Setup Selenium
+    chrome_options = Options()
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
+
+    # Login Twitter
+    driver.get("https://twitter.com/login")
+    time.sleep(3)
+    driver.find_element(By.NAME, 'text').send_keys("budionojabiren@gmail.com")
+    driver.find_element(By.NAME, 'text').send_keys(Keys.ENTER)
+    time.sleep(3)
+
+    try:
+        driver.find_element(By.NAME, 'text').send_keys("lalaries11_")
+        driver.find_element(By.NAME, 'text').send_keys(Keys.ENTER)
+        time.sleep(3)
+    except:
+        pass
+
+    driver.find_element(By.NAME, 'password').send_keys("@Lisa1104")
+    driver.find_element(By.NAME, 'password').send_keys(Keys.ENTER)
+    time.sleep(5)
+
+    # Cari Tweet berdasarkan keyword
+    driver.get(f"https://twitter.com/search?q={keyword}&src=typed_query&f=live")
+    time.sleep(5)
+
+    tweets = []
+    last_height = driver.execute_script("return document.body.scrollHeight")
+
+    while len(tweets) < 30:
+        elements = driver.find_elements(By.XPATH, '//article[@data-testid="tweet"]')
+        for element in elements:
+            try:
+                username = element.find_element(By.XPATH, './/div[@dir="ltr"]/span').text
+                comment = element.find_element(By.XPATH, './/div[@data-testid="tweetText"]').text
+                
+                link_element = element.find_element(By.XPATH, './/a[@role="link" and contains(@href, "/status/")]')
+                link = link_element.get_attribute('href')
+                
+                # Klik username untuk membuka profil dan ambil lokasi
+                element.find_element(By.XPATH, './/div[@dir="ltr"]/span').click()
+                time.sleep(3)
+
+                location = "Tidak Diketahui"
+                # Cek apakah elemen lokasi ada dengan atribut spesifik
+                location_elements = driver.find_elements(By.XPATH, '//span[@dir="ltr" and @role="presentation" and @class="css-1jxf684 r-bcqeeo r-1ttztb7 r-qvutc0 r-poiln3 r-4qtqp9 r-1a11zyx" and @data-testid="UserLocation"]')
+                if location_elements:
+                    location = location_elements[0].text
+                else:
+                    print(f"Lokasi tidak ditemukan untuk pengguna: {username}")
+
+                # Kembali ke halaman pencarian
+                driver.back()
+                time.sleep(3)
+
+                # Analisis Sentimen
+                if comment.strip():
+                    sentiment = get_sentiment(comment)
+                    tweets.append({
+                        'username': username,
+                        'comment': comment,
+                        'sentiment': sentiment,
+                        'link': link,
+                        'location': location
+                    })
+            except Exception as e:
+                print(f"Error saat mengambil data: {e}")
+                continue
+
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(3)
+        new_height = driver.execute_script("return document.body.scrollHeight")
+
+        if new_height == last_height:
+            break
+        last_height = new_height
+
+    driver.quit()
+    return tweets
+
+    # Setup Selenium
+    chrome_options = Options()
+    # chrome_options.add_argument("--headless")  # Aktifkan jika ingin headless
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
+
+    # Login Twitter
+    driver.get("https://twitter.com/login")
+    time.sleep(3)
+    driver.find_element(By.NAME, 'text').send_keys("budionojabiren@gmail.com")
+    driver.find_element(By.NAME, 'text').send_keys(Keys.ENTER)
+    time.sleep(3)
+
+    try:
+        driver.find_element(By.NAME, 'text').send_keys("lalaries11_")
+        driver.find_element(By.NAME, 'text').send_keys(Keys.ENTER)
+        time.sleep(3)
+    except:
+        pass
+
+    driver.find_element(By.NAME, 'password').send_keys("@Lisa1104")
+    driver.find_element(By.NAME, 'password').send_keys(Keys.ENTER)
+    time.sleep(5)
+
+    # Cari Tweet berdasarkan keyword
+    driver.get(f"https://twitter.com/search?q={keyword}&src=typed_query&f=live")
+    time.sleep(5)
+
+    tweets = []
+    last_height = driver.execute_script("return document.body.scrollHeight")
+
+    while len(tweets) < 30:
+        elements = driver.find_elements(By.XPATH, '//article[@data-testid="tweet"]')
+        for element in elements:
+            try:
+                username = element.find_element(By.XPATH, './/div[@dir="ltr"]/span').text
+                comment = element.find_element(By.XPATH, './/div[@data-testid="tweetText"]').text
+                
+                link_element = element.find_element(By.XPATH, './/a[@role="link" and contains(@href, "/status/")]')
+                link = link_element.get_attribute('href')
+                
+                # Klik username untuk membuka profil dan ambil lokasi
+                element.find_element(By.XPATH, './/div[@dir="ltr"]/span').click()
+                time.sleep(3)
+
+                location = "Tidak Diketahui"
+                try:
+                    location_element = driver.find_element(By.XPATH, '//div[@data-testid="UserProfileHeader_Items"]/span')
+                    location = location_element.text
+                except:
+                    print("Lokasi tidak ditemukan untuk pengguna:", username)
+
+                # Kembali ke halaman pencarian
+                driver.back()
+                time.sleep(3)
+
+                # Analisis Sentimen
+                if comment.strip():
+                    sentiment = get_sentiment(comment)
+                    tweets.append({
+                        'username': username,
+                        'comment': comment,
+                        'sentiment': sentiment,
+                        'link': link,
+                        'location': location
+                    })
+            except Exception as e:
+                print(f"Error saat mengambil data: {e}")
+                continue
+
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(3)
+        new_height = driver.execute_script("return document.body.scrollHeight")
+
+        if new_height == last_height:
+            break
+        last_height = new_height
+
+    driver.quit()
+    return tweets
+
     chrome_options = Options()
     # chrome_options.add_argument("--headless")  # Aktifkan jika ingin headless
     chrome_options.add_argument("--no-sandbox")
@@ -114,19 +315,25 @@ def index():
     keyword = ""
     graph_html = ""
     word_graph_html = ""
+    grafik_lokasi = ""
+    grafik_wilayah = ""
 
     if request.method == 'POST':
         keyword = request.form['keyword']
         tweets = get_tweets(keyword)
+        grafik_lokasi = buat_grafik_lokasi(tweets)
+        grafik_wilayah = buat_grafik_wilayah(tweets)
 
     if not tweets:
-        return render_template('index.html', tweets=tweets, graph_html="", word_graph_html="", keyword=keyword, message="Tidak ada data ditemukan!")
+        return render_template('index.html', tweets=tweets, graph_html="", word_graph_html="", grafik_lokasi=grafik_lokasi, 
+                           grafik_wilayah=grafik_wilayah, keyword=keyword, message="Tidak ada data ditemukan!")
 
     df = pd.DataFrame(tweets)
 
     if 'sentiment' not in df.columns:
         print("Tidak ada kolom 'sentiment' pada DataFrame.")
-        return render_template('index.html', tweets=tweets, graph_html="", word_graph_html="", keyword=keyword, message="Gagal memuat data sentimen!")
+        return render_template('index.html', tweets=tweets, graph_html="", word_graph_html="", grafik_lokasi=grafik_lokasi, 
+                           grafik_wilayah=grafik_wilayah, keyword=keyword, message="Gagal memuat data sentimen!")
 
     # Analisis Sentimen
     sentiment_counts = df['sentiment'].value_counts()
