@@ -37,7 +37,13 @@
       {% endfor %}
     </table>
 
-    <h2>Grafik Distribusi Sentimen:</h2>
-    <div>{{ graph_html | safe }}</div>
+    <div>
+      <h3>Distribusi Sentimen</h3>
+      {{ graph_html|safe }}
+    </div>
+    <div>
+      <h3>Top 10 Kata Kunci</h3>
+      {{ word_graph_html|safe }}
+    </div>
   </body>
 </html>
