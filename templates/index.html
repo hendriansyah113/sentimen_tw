@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Analisis Sentimen Tweet</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  </head>
+  <body>
+    <h1>Cari Tweet dan Analisis Sentimen</h1>
+    <form method="POST">
+      <input type="text" name="kata_kunci" placeholder="Kata kunci" required />
+      <button type="submit">Cari</button>
+    </form>
+
+    <h2>Grafik Hasil Analisis Sentimen:</h2>
+    <div>{{ grafik_html|safe }}</div>
+  </body>
+</html>
