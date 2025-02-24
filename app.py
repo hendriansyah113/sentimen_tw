@@ -1,116 +1,132 @@
 from flask import Flask, render_template, request
+from transformers import pipeline
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
-from textblob import TextBlob
-import plotly.graph_objects as go
 import time
+import pandas as pd
+import plotly.graph_objs as go
+import plotly.io as pio
 
+# Inisialisasi Flask
 app = Flask(__name__)
 
-# Data Login Twitter
-TWITTER_USERNAME = "lalaries11_"
-TWITTER_EMAIL = "budionojabiren@gmail.com"
-TWITTER_PASSWORD = "@Lisa1104"
+# Load model IndoBERT dari Hugging Face
+sentiment_analyzer = pipeline("sentiment-analysis", model="indobenchmark/indobert-base-p1")
 
-# Fungsi untuk Analisis Sentimen
+# Fungsi Analisis Sentimen
 def get_sentiment(text):
-    analysis = TextBlob(text)
-    if analysis.sentiment.polarity > 0:
-        return 'Positif'
-    elif analysis.sentiment.polarity == 0:
-        return 'Netral'
-    else:
+    result = sentiment_analyzer(text)
+    label = result[0]['label']
+    if label == 'LABEL_1':
         return 'Negatif'
+    elif label == 'LABEL_2':
+        return 'Netral'
+    elif label == 'LABEL_3':
+        return 'Positif'
+    else:
+        return 'Tidak Diketahui'
 
-# Fungsi untuk Scraping Tweet
-def scrape_tweets(keyword):
+# Fungsi untuk Scraping Komentar Twitter
+def get_tweets(keyword):
     # Setup Selenium
-    options = Options()
-    # options.add_argument("--headless")  # Jangan gunakan headless untuk menampilkan Chrome
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
 
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    # Login Twitter
     driver.get("https://twitter.com/login")
-    time.sleep(5)
-    
-    # Masukkan Email terlebih dahulu
-    email_input = driver.find_element(By.NAME, "text")
-    email_input.send_keys(TWITTER_EMAIL)
-    email_input.send_keys(Keys.RETURN)
     time.sleep(3)
-    
-    # Cek apakah diminta Username
+    driver.find_element(By.NAME, 'text').send_keys("budionojabiren@gmail.com")
+    driver.find_element(By.NAME, 'text').send_keys(Keys.ENTER)
+    time.sleep(3)
+
     try:
-        username_input = driver.find_element(By.NAME, "text")
-        username_input.send_keys(TWITTER_USERNAME)
-        username_input.send_keys(Keys.RETURN)
+        driver.find_element(By.NAME, 'text').send_keys("lalaries11_")
+        driver.find_element(By.NAME, 'text').send_keys(Keys.ENTER)
         time.sleep(3)
-        print("Username diminta, sudah dimasukkan.")
     except:
-        print("Tidak diminta username, lanjut ke password.")
+        pass
 
-    # Masukkan Password
-    try:
-        password_input = driver.find_element(By.NAME, "password")
-        password_input.send_keys(TWITTER_PASSWORD)
-        password_input.send_keys(Keys.RETURN)
-        time.sleep(5)
-    except:
-        print("Gagal menemukan input password")
-
-    # Cari Keyword
-    search_url = f"https://twitter.com/search?q={keyword}&src=typed_query"
-    driver.get(search_url)
+    driver.find_element(By.NAME, 'password').send_keys("@Lisa1104")
+    driver.find_element(By.NAME, 'password').send_keys(Keys.ENTER)
     time.sleep(5)
 
-    # Scroll untuk memuat lebih banyak tweet
-    for _ in range(3):
+    # Cari Tweet berdasarkan keyword
+    driver.get(f"https://twitter.com/search?q={keyword}&src=typed_query&f=live")
+    time.sleep(5)
+
+    tweets = []
+    last_height = driver.execute_script("return document.body.scrollHeight")
+
+    while len(tweets) < 30:
+        elements = driver.find_elements(By.XPATH, '//article[@data-testid="tweet"]')
+        for element in elements:
+            try:
+                username = element.find_element(By.XPATH, './/div[@dir="ltr"]/span').text
+                comment = element.find_element(By.XPATH, './/div[2]/div[2]/div[1]/div').text
+                
+                # Cek jika komentar tidak kosong
+                if comment.strip():
+                    sentiment = get_sentiment(comment)
+                    tweets.append({
+                        'username': username,
+                        'comment': comment,
+                        'sentiment': sentiment
+                    })
+            except Exception as e:
+                print(f"Error saat mengambil data: {e}")
+                continue
+
+        # Scroll ke bawah untuk memuat lebih banyak tweet
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(3)
+        new_height = driver.execute_script("return document.body.scrollHeight")
 
-    # Ambil Data Tweet
-    tweets = driver.find_elements(By.XPATH, "//article[@data-testid='tweet']")
-    data = []
-    for tweet in tweets:
-        try:
-            username = tweet.find_element(By.XPATH, ".//div[@dir='ltr']/span").text
-            comment = tweet.find_element(By.XPATH, ".//div[@lang]").text
-            sentiment = get_sentiment(comment)
-            data.append((username, comment, sentiment))
-        except:
-            continue
+        if new_height == last_height:
+            break
+        last_height = new_height
 
     driver.quit()
-    return data
+    print(f"Data yang berhasil diambil: {tweets}")  # Debugging
+    return tweets
 
-# Routing Web
+# Route Utama
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    tweets_data = []
+    tweets = []
+    keyword = ""
     if request.method == 'POST':
         keyword = request.form['keyword']
-        tweets_data = scrape_tweets(keyword)
+        tweets = get_tweets(keyword)
 
-        # Membuat Grafik
-        sentiments = [tweet[2] for tweet in tweets_data]
-        sentiment_counts = { 'Positif': sentiments.count('Positif'), 
-                             'Netral': sentiments.count('Netral'), 
-                             'Negatif': sentiments.count('Negatif') }
+    # Jika tidak ada tweet, tampilkan pesan
+    if not tweets:
+        return render_template('index.html', tweets=tweets, graph_html="", keyword=keyword, message="Tidak ada data ditemukan!")
 
-        fig = go.Figure([go.Bar(x=list(sentiment_counts.keys()), 
-                                y=list(sentiment_counts.values()))])
-        fig.update_layout(title_text=f'Analisis Sentimen untuk "{keyword}"')
-        graph_html = fig.to_html(full_html=False)
+    # Buat DataFrame untuk visualisasi
+    df = pd.DataFrame(tweets)
 
-        return render_template('index.html', tweets_data=tweets_data, graph_html=graph_html)
-    
-    return render_template('index.html', tweets_data=tweets_data)
+    # Tambahkan validasi untuk memastikan kolom sentiment ada
+    if 'sentiment' not in df.columns:
+        print("Tidak ada kolom 'sentiment' pada DataFrame.")  # Debugging
+        return render_template('index.html', tweets=tweets, graph_html="", keyword=keyword, message="Gagal memuat data sentimen!")
+
+    sentiment_counts = df['sentiment'].value_counts()
+
+    # Buat Grafik Pie
+    fig = go.Figure(data=[go.Pie(labels=sentiment_counts.index, values=sentiment_counts.values)])
+    fig.update_layout(title='Distribusi Sentimen')
+
+    # Konversi Grafik ke HTML
+    graph_html = pio.to_html(fig, full_html=False)
+
+    return render_template('index.html', tweets=tweets, graph_html=graph_html, keyword=keyword, message="")
 
 if __name__ == '__main__':
     app.run(debug=True)

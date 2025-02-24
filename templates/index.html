@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Analisis Sentimen Twitter</title>
   </head>
   <body>
@@ -9,30 +11,29 @@
       <input
         type="text"
         name="keyword"
-        placeholder="Cari di Twitter"
-        required
+        placeholder="Masukkan kata kunci"
+        value="{{ keyword }}"
       />
       <button type="submit">Cari</button>
     </form>
 
-    {% if tweets_data %}
-    <h2>Hasil Analisis Sentimen:</h2>
-    {{ graph_html|safe }}
-
-    <table border="1">
+    <h2>Hasil Pencarian:</h2>
+    <table border="1" cellpadding="5" cellspacing="0">
       <tr>
         <th>Username</th>
         <th>Komentar</th>
         <th>Kategori Sentimen</th>
       </tr>
-      {% for tweet in tweets_data %}
+      {% for tweet in tweets %}
       <tr>
-        <td>{{ tweet[0] }}</td>
-        <td>{{ tweet[1] }}</td>
-        <td>{{ tweet[2] }}</td>
+        <td>{{ tweet.username }}</td>
+        <td>{{ tweet.comment }}</td>
+        <td>{{ tweet.sentiment }}</td>
       </tr>
       {% endfor %}
     </table>
-    {% endif %}
+
+    <h2>Grafik Distribusi Sentimen:</h2>
+    <div>{{ graph_html | safe }}</div>
   </body>
 </html>
