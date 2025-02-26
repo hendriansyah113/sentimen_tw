@@ -4,76 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Analisis Sentimen Twitter</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        background-color: #f4f6f9;
-        color: #333;
-        text-align: center;
-        padding: 20px;
-      }
-      h1 {
-        color: #0056b3;
-      }
-      form {
-        margin-bottom: 20px;
-      }
-      input[type="text"] {
-        width: 60%;
-        padding: 10px;
-        margin-right: 10px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-      }
-      button {
-        padding: 10px 15px;
-        background-color: #0056b3;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-      button:hover {
-        background-color: #004494;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-      }
-      table th,
-      table td {
-        padding: 10px;
-        text-align: left;
-      }
-      table th {
-        background-color: #0056b3;
-        color: white;
-      }
-      table tr:nth-child(even) {
-        background-color: #f2f2f2;
-      }
-      table tr:hover {
-        background-color: #e8f4ff;
-      }
-      a {
-        color: #0056b3;
-        text-decoration: none;
-      }
-      a:hover {
-        text-decoration: underline;
-      }
-      .card {
-        background-color: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 20px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        margin: 20px auto;
-        max-width: 800px;
-        text-align: left;
-      }
-    </style>
   </head>
   <body>
     <h1>Analisis Sentimen Twitter</h1>
@@ -87,48 +17,27 @@
       <button type="submit">Cari</button>
     </form>
 
-    <div class="card">
-      <h2>Hasil Pencarian:</h2>
-      <table border="1" cellpadding="5" cellspacing="0">
-        <tr>
-          <th>Username</th>
-          <th>Komentar</th>
-          <th>Kategori Sentimen</th>
-          <th>Lokasi</th>
-          <th>Link</th>
-        </tr>
-        {% for tweet in tweets %}
-        <tr>
-          <td>{{ tweet.username }}</td>
-          <td>{{ tweet.comment }}</td>
-          <td>{{ tweet.sentiment }}</td>
-          <td>{{ tweet.location }}</td>
-          <td>
-            <a href="{{ tweet.link }}" target="_blank">Lihat Tweet</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </table>
-    </div>
+    <h2>Hasil Pencarian:</h2>
+    <table border="1" cellpadding="5" cellspacing="0">
+      <tr>
+        <th>Username</th>
+        <th>Komentar</th>
+        <th>Kategori Sentimen</th>
+        <th>Link</th>
+      </tr>
+      {% for tweet in tweets %}
+      <tr>
+        <td>{{ tweet.username }}</td>
+        <td>{{ tweet.comment }}</td>
+        <td>{{ tweet.sentiment }}</td>
+        <td>
+          <a href="{{ tweet.link }}" target="_blank">Lihat Tweet</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
 
-    <div class="card">
-      <h3>Distribusi Sentimen</h3>
-      {{ graph_html|safe }}
-    </div>
-
-    <div class="card">
-      <h3>Top 10 Kata Kunci</h3>
-      {{ word_graph_html|safe }}
-    </div>
-
-    <div class="card">
-      <h2>Grafik Lokasi</h2>
-      {{ grafik_lokasi|safe }}
-    </div>
-
-    <div class="card">
-      <h2>Grafik Wilayah</h2>
-      {{ grafik_wilayah|safe }}
-    </div>
+    <h2>Grafik Distribusi Sentimen:</h2>
+    <div>{{ graph_html | safe }}</div>
   </body>
 </html>
